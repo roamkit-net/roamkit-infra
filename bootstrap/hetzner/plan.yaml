@@ -32,6 +32,18 @@ prerequisites:
 dns:
   zone: roamkit.net
   records:
+    - name: "@"
+      fqdn: roamkit.net
+      type: A
+      value: 65.108.196.92
+      proxied: true
+      purpose: marketing landing
+    - name: www
+      fqdn: www.roamkit.net
+      type: A
+      value: 65.108.196.92
+      proxied: true
+      purpose: marketing landing (www redirect via Traefik)
     - name: staging
       fqdn: staging.roamkit.net
       type: A
@@ -45,6 +57,10 @@ dns:
       proxied: true
       purpose: api staging
   verify:
+    - command: dig +short roamkit.net A
+      note: proxied records may return Cloudflare IP, not origin
+    - command: dig +short www.roamkit.net A
+      note: proxied records may return Cloudflare IP, not origin
     - command: dig +short staging.roamkit.net A
       note: proxied records may return Cloudflare IP, not origin
     - command: dig +short api.staging.roamkit.net A
@@ -63,7 +79,7 @@ env:
   staging:
     DJANGO_SETTINGS_MODULE: config.settings.staging
     DJANGO_DEBUG: "false"
-    DJANGO_ALLOWED_HOSTS: api.staging.roamkit.net,staging.roamkit.net
+    DJANGO_ALLOWED_HOSTS: api.staging.roamkit.net,staging.roamkit.net,roamkit.net,www.roamkit.net
     NEXT_PUBLIC_API_URL: https://api.staging.roamkit.net
     NODE_ENV: production
   later:
@@ -128,7 +144,10 @@ services:
     network: proxy
     traefik:
       router: roamkit-web
-      host: staging.roamkit.net
+      hosts:
+        - roamkit.net
+        - www.roamkit.net
+        - staging.roamkit.net
       service: roamkit-web
       entrypoint: websecure
       cert_resolver: cloudflare
@@ -155,10 +174,16 @@ phases:
     requires: []
     manual: true
     expect:
+      - roamkit.net A proxied → 65.108.196.92
+      - www.roamkit.net A proxied → 65.108.196.92
       - staging.roamkit.net A proxied → 65.108.196.92
       - api.staging.roamkit.net A proxied → 65.108.196.92
       - SSL mode Full or Full (strict) — verify manually in dashboard
     verify:
+      - command: dig +short roamkit.net A
+        expect: Cloudflare proxy IPs (not origin)
+      - command: dig +short www.roamkit.net A
+        expect: Cloudflare proxy IPs (not origin)
       - command: dig +short staging.roamkit.net A
         expect: Cloudflare proxy IPs (not origin)
       - command: dig +short api.staging.roamkit.net A
@@ -216,7 +241,7 @@ phases:
       - roamkit-celery-staging Up
       - roamkit-web-staging healthy
       - roamkit-api router in Traefik (Host api.staging.roamkit.net)
-      - roamkit-web router in Traefik (Host staging.roamkit.net)
+      - roamkit-web router in Traefik (Host roamkit.net, www.roamkit.net, staging.roamkit.net)
 
   - id: deploy
     description: Full deploy pipeline with migrate and smoke test
@@ -251,6 +276,8 @@ verification:
     - command: curl -sf https://api.staging.roamkit.net/health/live
       expect: HTTP 200
     - command: curl -sf https://api.staging.roamkit.net/health/ready
+      expect: HTTP 200
+    - command: curl -sf https://roamkit.net/
       expect: HTTP 200
     - command: curl -sf https://staging.roamkit.net/
       expect: HTTP 200

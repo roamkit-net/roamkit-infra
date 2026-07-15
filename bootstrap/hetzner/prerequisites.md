@@ -32,6 +32,8 @@ Create proxied records (orange cloud ON) pointing to **`65.108.196.92`**:
 
 | Name | Type | Target |
 |------|------|--------|
+| `roamkit.net` (`@`) | A (or AAAA) | `65.108.196.92` |
+| `www` | A (or AAAA) | `65.108.196.92` |
 | `staging.roamkit.net` | A (or AAAA) | `65.108.196.92` |
 | `api.staging.roamkit.net` | A (or AAAA) | `65.108.196.92` |
 
@@ -83,7 +85,7 @@ export WEB_IMAGE=ghcr.io/roamkit-net/roamkit-web:<tag>
 ./scripts/deploy-staging.sh
 ```
 
-Smoke test URLs: `https://staging.roamkit.net`, `https://api.staging.roamkit.net/health/ready`.
+Smoke test URLs: `https://roamkit.net`, `https://staging.roamkit.net`, `https://api.staging.roamkit.net/health/ready`.
 
 ## Server task checklist
 

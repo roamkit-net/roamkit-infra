@@ -56,9 +56,13 @@ Zona: **`roamkit.net`**
 
 | Zapis | Tip | Ime | Vrijednost | Proxy |
 |-------|-----|-----|------------|-------|
+| Marketing | A | `@` | `65.108.196.92` | Proxied (narančasti oblak) |
+| Marketing www | A | `www` | `65.108.196.92` | Proxied |
 | Web staging | A | `staging` | `65.108.196.92` | Proxied (narančasti oblak) |
 | API staging | A | `api.staging` | `65.108.196.92` | Proxied |
 
+- [ ] `roamkit.net` → A → `65.108.196.92` (proxied)
+- [ ] `www.roamkit.net` → A → `65.108.196.92` (proxied)
 - [x] `staging.roamkit.net` → A → `65.108.196.92` (proxied)
 - [x] `api.staging.roamkit.net` → A → `65.108.196.92` (proxied)
 
@@ -68,6 +72,8 @@ Zona: **`roamkit.net`**
 Provjera s servera (nakon propagacije, 1–5 min):
 
 ```bash
+dig +short roamkit.net A
+dig +short www.roamkit.net A
 dig +short staging.roamkit.net A
 dig +short api.staging.roamkit.net A
 # Očekivano: Cloudflare proxy IP (ne nužno 65.108.196.92 — to je normalno za proxied)
@@ -93,7 +99,7 @@ Obavezno promijeni (ne ostavljaj `change-me`):
 - [ ] `DJANGO_SECRET_KEY` — jak random (50+ znakova)
 - [ ] `DJANGO_SETTINGS_MODULE=config.settings.staging`
 - [ ] `DJANGO_DEBUG=false`
-- [ ] `DJANGO_ALLOWED_HOSTS=api.staging.roamkit.net,staging.roamkit.net`
+- [ ] `DJANGO_ALLOWED_HOSTS=api.staging.roamkit.net,staging.roamkit.net,roamkit.net,www.roamkit.net`
 - [ ] `NEXT_PUBLIC_API_URL=https://api.staging.roamkit.net`
 
 Kasnije (Faza 1+):
@@ -153,6 +159,7 @@ Deklarativni spec: **`plan.yaml`**
 docker logs traefik 2>&1 | tail -30 | grep -i roamkit || true
 docker compose --profile app exec api curl -sf http://localhost:8000/health/live
 docker compose --profile app exec web curl -sf http://localhost:3000/
+curl -sf https://roamkit.net/
 curl -sf https://api.staging.roamkit.net/health/live
 curl -sf https://staging.roamkit.net/
 ```
