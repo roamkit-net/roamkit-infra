@@ -2,7 +2,7 @@
 # Create org milestones for phased delivery.
 set -euo pipefail
 
-ORG="${ROAMKIT_ORG:-roamkit}"
+ORG="${ROAMKIT_ORG:-roamkit-net}"
 REPOS=(roamkit-infra roamkit-api roamkit-web)
 
 MILESTONES=(

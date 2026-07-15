@@ -65,8 +65,8 @@ Edit `/opt/stacks/roamkit-net/.env` on the server — set `POSTGRES_PASSWORD`, `
 ## 6. GitHub secrets (before CI deploy)
 
 ```bash
-echo -n "65.108.196.92" | gh secret set STAGING_HOST --org roamkit
-gh secret set STAGING_SSH_KEY --org roamkit < ~/.ssh/id_ed25519
+echo -n "65.108.196.92" | gh secret set STAGING_HOST --org roamkit-net
+gh secret set STAGING_SSH_KEY --org roamkit-net < ~/.ssh/id_ed25519
 ```
 
 See [../github/secrets.md](../github/secrets.md).
@@ -78,8 +78,8 @@ After `roamkit-api` and `roamkit-web` images exist in GHCR:
 ```bash
 ssh dedicated-hel1
 cd /opt/stacks/roamkit-net
-export API_IMAGE=ghcr.io/roamkit/roamkit-api:<tag>
-export WEB_IMAGE=ghcr.io/roamkit/roamkit-web:<tag>
+export API_IMAGE=ghcr.io/roamkit-net/roamkit-api:<tag>
+export WEB_IMAGE=ghcr.io/roamkit-net/roamkit-web:<tag>
 ./scripts/deploy-staging.sh
 ```
 

@@ -2,7 +2,7 @@
 # Create roamkit org repositories (idempotent).
 set -euo pipefail
 
-ORG="${ROAMKIT_ORG:-roamkit}"
+ORG="${ROAMKIT_ORG:-roamkit-net}"
 
 REPOS=(
   "roamkit-infra:Infrastructure as Code — bootstrap, compose, nginx, CI, deploy"
