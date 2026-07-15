@@ -1,0 +1,14 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Local data
+data/
+*.log
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp

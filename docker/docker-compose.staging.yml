@@ -1,0 +1,80 @@
+# Hetzner staging stack — /opt/stacks/roamkit-net/docker-compose.yml
+# Server pulls images from GHCR only; never builds on host.
+# Routing via shared host Traefik (network: proxy) — no per-stack nginx.
+# DB: shared postgis (/opt/stacks/data) · Redis: shared infra-redis (/opt/stacks/redis)
+
+services:
+  api:
+    profiles: [app]
+    image: ${API_IMAGE}
+    container_name: roamkit-api-staging
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      postgis: {}
+      hetzner_net: {}
+      proxy: {}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.roamkit-api.rule=Host(`api.staging.roamkit.net`)
+      - traefik.http.routers.roamkit-api.entrypoints=websecure
+      - traefik.http.routers.roamkit-api.tls=true
+      - traefik.http.routers.roamkit-api.tls.certresolver=cloudflare
+      - traefik.http.routers.roamkit-api.service=roamkit-api
+      - traefik.http.services.roamkit-api.loadbalancer.server.port=8000
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health/live || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  celery:
+    profiles: [app]
+    image: ${API_IMAGE}
+    container_name: roamkit-celery-staging
+    restart: unless-stopped
+    command: celery -A config worker -l info
+    env_file:
+      - .env
+    networks:
+      postgis: {}
+      hetzner_net: {}
+
+  web:
+    profiles: [app]
+    image: ${WEB_IMAGE}
+    container_name: roamkit-web-staging
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.roamkit-web.rule=Host(`staging.roamkit.net`)
+      - traefik.http.routers.roamkit-web.entrypoints=websecure
+      - traefik.http.routers.roamkit-web.tls=true
+      - traefik.http.routers.roamkit-web.tls.certresolver=cloudflare
+      - traefik.http.routers.roamkit-web.service=roamkit-web
+      - traefik.http.services.roamkit-web.loadbalancer.server.port=3000
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+
+networks:
+  postgis:
+    external: true
+  hetzner_net:
+    external: true
+  proxy:
+    external: true

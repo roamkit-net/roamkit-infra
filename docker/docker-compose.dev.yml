@@ -1,0 +1,51 @@
+# Local development — Dell XPS / WSL2
+# Usage: docker compose -f docker-compose.dev.yml up -d
+# App processes (runserver, celery, npm dev) run on host, not in compose.
+
+services:
+  postgis:
+    image: postgis/postgis:16-3.4
+    container_name: roamkit-postgis-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-roamkit}
+      POSTGRES_USER: ${POSTGRES_USER:-roamkit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-roamkit}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-roamkit} -d ${POSTGRES_DB:-roamkit}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: roamkit-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: roamkit-mailpit-dev
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    environment:
+      MP_MAX_MESSAGES: 5000
+
+volumes:
+  postgis_data:
+  redis_data:
