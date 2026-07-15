@@ -1,6 +1,6 @@
 # roamkit-infra
 
-Infrastructure as Code for [RoamKit](https://github.com/roamkit). This is the **first repo** in the org — bootstrap, compose, CI templates, and deploy scripts live here before `roamkit-api` and `roamkit-web` exist.
+Infrastructure as Code for [RoamKit](https://github.com/roamkit-net). This is the **first repo** in the org — bootstrap, compose, CI templates, and deploy scripts live here before `roamkit-api` and `roamkit-web` exist.
 
 ## Layout
 

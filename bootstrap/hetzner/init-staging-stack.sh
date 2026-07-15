@@ -42,7 +42,7 @@ copy_from_local() {
 if [[ -f "${INFRA_ROOT}/docker/docker-compose.staging.yml" ]]; then
   copy_from_local
 else
-  INFRA_REPO="${ROAMKIT_INFRA_REPO:-https://github.com/roamkit/roamkit-infra.git}"
+  INFRA_REPO="${ROAMKIT_INFRA_REPO:-https://github.com/roamkit-net/roamkit-infra.git}"
   TMP_DIR=$(mktemp -d)
   git clone "${INFRA_REPO}" "${TMP_DIR}"
   cp "${TMP_DIR}/docker/docker-compose.staging.yml" "${STACK_DIR}/docker-compose.yml"

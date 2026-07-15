@@ -2,7 +2,7 @@
 # Create standard labels across roamkit repos.
 set -euo pipefail
 
-ORG="${ROAMKIT_ORG:-roamkit}"
+ORG="${ROAMKIT_ORG:-roamkit-net}"
 REPOS=(roamkit-infra roamkit-docs roamkit-api roamkit-web)
 
 declare -A LABELS=(

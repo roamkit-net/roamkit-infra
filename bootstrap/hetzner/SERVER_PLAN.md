@@ -133,8 +133,8 @@ docker exec infra-redis redis-cli ping
 
 ```bash
 cd /opt/stacks/roamkit-net
-export API_IMAGE=ghcr.io/roamkit/roamkit-api:<tag>
-export WEB_IMAGE=ghcr.io/roamkit/roamkit-web:<tag>
+export API_IMAGE=ghcr.io/roamkit-net/roamkit-api:<tag>
+export WEB_IMAGE=ghcr.io/roamkit-net/roamkit-web:<tag>
 docker compose --profile app pull
 docker compose --profile app up -d
 ```
@@ -166,8 +166,8 @@ curl -sf https://staging.roamkit.net/
 
 ```bash
 cd /opt/stacks/roamkit-net
-export API_IMAGE=ghcr.io/roamkit/roamkit-api:<tag>
-export WEB_IMAGE=ghcr.io/roamkit/roamkit-web:<tag>
+export API_IMAGE=ghcr.io/roamkit-net/roamkit-api:<tag>
+export WEB_IMAGE=ghcr.io/roamkit-net/roamkit-web:<tag>
 ./scripts/deploy-staging.sh
 ```
 
@@ -182,8 +182,8 @@ Kad `GH_TOKEN` ima **org admin** ili **Actions secrets: write**:
 
 ```bash
 # Na Dell XPS / WSL
-echo -n "65.108.196.92" | gh secret set STAGING_HOST --org roamkit
-gh secret set STAGING_SSH_KEY --org roamkit < ~/.ssh/id_ed25519
+echo -n "65.108.196.92" | gh secret set STAGING_HOST --org roamkit-net
+gh secret set STAGING_SSH_KEY --org roamkit-net < ~/.ssh/id_ed25519
 ```
 
 - [ ] `STAGING_HOST` postavljen

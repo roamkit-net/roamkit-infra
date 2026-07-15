@@ -1,4 +1,4 @@
-# GitHub Secrets — roamkit org
+# GitHub Secrets — roamkit-net org
 
 Never commit secret values. Set via `gh` from WSL.
 
@@ -6,9 +6,9 @@ Never commit secret values. Set via `gh` from WSL.
 
 | Secret | Purpose | Set command |
 |--------|---------|-------------|
-| `STAGING_HOST` | Hetzner server IP or hostname (not SSH config alias) | `gh secret set STAGING_HOST --org roamkit` |
-| `STAGING_SSH_KEY` | SSH private key for deploy (root) | `gh secret set STAGING_SSH_KEY --org roamkit` |
-| `GHCR_TOKEN` | Pull/push container images | `gh secret set GHCR_TOKEN --org roamkit` |
+| `STAGING_HOST` | Hetzner server IP or hostname (not SSH config alias) | `gh secret set STAGING_HOST --org roamkit-net` |
+| `STAGING_SSH_KEY` | SSH private key for deploy (root) | `gh secret set STAGING_SSH_KEY --org roamkit-net` |
+| `GHCR_TOKEN` | Pull/push container images | `gh secret set GHCR_TOKEN --org roamkit-net` |
 
 ### Staging host (confirmed)
 
@@ -17,8 +17,8 @@ Server: Hetzner dedicated HEL1 — `65.108.196.92`, SSH user **`root`**.
 WSL alias `dedicated-hel1` works locally only; GitHub Actions needs the IP:
 
 ```bash
-echo -n "65.108.196.92" | gh secret set STAGING_HOST --org roamkit
-gh secret set STAGING_SSH_KEY --org roamkit < ~/.ssh/id_ed25519
+echo -n "65.108.196.92" | gh secret set STAGING_HOST --org roamkit-net
+gh secret set STAGING_SSH_KEY --org roamkit-net < ~/.ssh/id_ed25519
 ```
 
 ## Repo secrets (per repository)
@@ -44,14 +44,14 @@ gh secret set STAGING_SSH_KEY --org roamkit < ~/.ssh/id_ed25519
 
 ```bash
 # Org-level
-echo -n "value" | gh secret set SECRET_NAME --org roamkit
+echo -n "value" | gh secret set SECRET_NAME --org roamkit-net
 
 # Repo-level
-echo -n "value" | gh secret set SECRET_NAME --repo roamkit/roamkit-api
+echo -n "value" | gh secret set SECRET_NAME --repo roamkit-net/roamkit-api
 
 # List (names only)
-gh secret list --org roamkit
-gh secret list --repo roamkit/roamkit-api
+gh secret list --org roamkit-net
+gh secret list --repo roamkit-net/roamkit-api
 ```
 
 ## Server-side secrets

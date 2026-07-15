@@ -2,7 +2,7 @@
 # Create roamkit GitHub organization (idempotent).
 set -euo pipefail
 
-ORG="${ROAMKIT_ORG:-roamkit}"
+ORG="${ROAMKIT_ORG:-roamkit-net}"
 
 if [[ -z "${GH_TOKEN:-}" ]]; then
   echo "ERROR: GH_TOKEN is not set. Export a token with admin:org scope." >&2

@@ -75,8 +75,8 @@ env:
 
 images:
   registry: ghcr.io
-  api: ghcr.io/roamkit/roamkit-api
-  web: ghcr.io/roamkit/roamkit-web
+  api: ghcr.io/roamkit-net/roamkit-api
+  web: ghcr.io/roamkit-net/roamkit-web
   env_vars:
     - API_IMAGE
     - WEB_IMAGE
@@ -207,8 +207,8 @@ phases:
       - ghcr_images
     commands:
       - cd /opt/stacks/roamkit-net
-      - export API_IMAGE=ghcr.io/roamkit/roamkit-api:<tag>
-      - export WEB_IMAGE=ghcr.io/roamkit/roamkit-web:<tag>
+      - export API_IMAGE=ghcr.io/roamkit-net/roamkit-api:<tag>
+      - export WEB_IMAGE=ghcr.io/roamkit-net/roamkit-web:<tag>
       - docker compose --profile app pull
       - docker compose --profile app up -d
     expect:
@@ -228,14 +228,14 @@ phases:
       - smoke test PASS
 
 github_secrets:
-  org: roamkit
+  org: roamkit-net
   set_from: WSL  # not from staging server
   secrets:
     - name: STAGING_HOST
       value: 65.108.196.92
-      command: echo -n "65.108.196.92" | gh secret set STAGING_HOST --org roamkit
+      command: echo -n "65.108.196.92" | gh secret set STAGING_HOST --org roamkit-net
     - name: STAGING_SSH_KEY
-      command: gh secret set STAGING_SSH_KEY --org roamkit < ~/.ssh/id_ed25519
+      command: gh secret set STAGING_SSH_KEY --org roamkit-net < ~/.ssh/id_ed25519
     - name: GHCR_TOKEN
       purpose: CI push/pull to GHCR
 
