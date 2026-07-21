@@ -43,6 +43,18 @@ services:
       postgis: {}
       hetzner_net: {}
 
+  celery-beat:
+    profiles: [app]
+    image: ${API_IMAGE}
+    container_name: roamkit-celery-beat-staging
+    restart: unless-stopped
+    command: celery -A config beat -l info -s /tmp/celerybeat-schedule
+    env_file:
+      - .env
+    networks:
+      postgis: {}
+      hetzner_net: {}
+
   web:
     profiles: [app]
     image: ${WEB_IMAGE}

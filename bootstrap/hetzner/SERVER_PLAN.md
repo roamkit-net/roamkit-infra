@@ -149,6 +149,7 @@ Deklarativni spec: **`plan.yaml`**
 
 - [ ] `roamkit-api-staging` healthy
 - [ ] `roamkit-celery-staging` Up
+- [ ] `roamkit-celery-beat-staging` Up
 - [ ] `roamkit-web-staging` healthy
 
 ---
