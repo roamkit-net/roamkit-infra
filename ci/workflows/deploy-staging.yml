@@ -32,6 +32,7 @@ jobs:
 
       - name: Smoke test (from runner)
         run: |
+          curl -sf https://roamkit.net/
+          curl -sf https://staging.roamkit.net/
           curl -sf https://api.staging.roamkit.net/health/live
           curl -sf https://api.staging.roamkit.net/health/ready
-          curl -sf https://staging.roamkit.net/

@@ -43,6 +43,18 @@ services:
       postgis: {}
       hetzner_net: {}
 
+  celery-beat:
+    profiles: [app]
+    image: ${API_IMAGE}
+    container_name: roamkit-celery-beat-staging
+    restart: unless-stopped
+    command: celery -A config beat -l info -s /tmp/celerybeat-schedule
+    env_file:
+      - .env
+    networks:
+      postgis: {}
+      hetzner_net: {}
+
   web:
     profiles: [app]
     image: ${WEB_IMAGE}
@@ -58,7 +70,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=proxy
-      - traefik.http.routers.roamkit-web.rule=Host(`staging.roamkit.net`)
+      - traefik.http.routers.roamkit-web.rule=Host(`roamkit.net`) || Host(`www.roamkit.net`) || Host(`staging.roamkit.net`)
       - traefik.http.routers.roamkit-web.entrypoints=websecure
       - traefik.http.routers.roamkit-web.tls=true
       - traefik.http.routers.roamkit-web.tls.certresolver=cloudflare
