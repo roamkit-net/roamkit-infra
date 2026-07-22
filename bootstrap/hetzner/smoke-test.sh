@@ -6,10 +6,25 @@ WEB_URL="${SMOKE_WEB_URL:-https://staging.roamkit.net}"
 MARKETING_URL="${SMOKE_MARKETING_URL:-https://roamkit.net}"
 API_URL="${SMOKE_API_URL:-https://api.staging.roamkit.net}"
 TIMEOUT="${SMOKE_TIMEOUT:-30}"
+RETRIES="${SMOKE_RETRIES:-20}"
+RETRY_SLEEP="${SMOKE_RETRY_SLEEP:-3}"
 
 fail() {
   echo "SMOKE TEST FAILED: $*" >&2
   exit 1
+}
+
+wait_for() {
+  local url="$1"
+  local label="$2"
+  local i
+  for i in $(seq 1 "${RETRIES}"); do
+    if curl -4sf --max-time "${TIMEOUT}" "${url}" >/dev/null; then
+      return 0
+    fi
+    sleep "${RETRY_SLEEP}"
+  done
+  fail "${label} unreachable"
 }
 
 expect_http() {
@@ -43,7 +58,8 @@ if [[ "${reg_code}" != "400" ]]; then
   fail "auth/register expected HTTP 400 for empty body, got ${reg_code}"
 fi
 
-curl -4sf --max-time "${TIMEOUT}" "${WEB_URL}/" >/dev/null   || fail "web root unreachable"
+# Web can briefly 502 while nginx reconnects after container recreate.
+wait_for "${WEB_URL}/" "web root"
 
 expect_http "${WEB_URL}/login" "200" "web /login"
 expect_http "${WEB_URL}/register" "200" "web /register"

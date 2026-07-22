@@ -67,6 +67,15 @@ done
 docker compose "${COMPOSE_PROFILE[@]}" exec -T api curl -sf http://localhost:8000/health/live
 docker compose "${COMPOSE_PROFILE[@]}" exec -T api curl -sf http://localhost:8000/health/ready
 
+echo "Waiting for web..."
+for _ in $(seq 1 45); do
+  if docker compose "${COMPOSE_PROFILE[@]}" exec -T web curl -sf http://localhost:3000/ >/dev/null; then
+    break
+  fi
+  sleep 2
+done
+docker compose "${COMPOSE_PROFILE[@]}" exec -T web curl -sf http://localhost:3000/ >/dev/null
+
 echo "Smoke test..."
 "${SMOKE_SCRIPT}"
 
