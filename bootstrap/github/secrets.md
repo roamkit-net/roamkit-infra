@@ -8,6 +8,8 @@ Never commit secret values. Set via `gh` from WSL.
 |--------|---------|-------------|
 | `STAGING_HOST` | Hetzner server IP or hostname (not SSH config alias) | `gh secret set STAGING_HOST --org roamkit-net` |
 | `STAGING_SSH_KEY` | SSH private key for deploy (root) | `gh secret set STAGING_SSH_KEY --org roamkit-net` |
+| `PRODUCTION_HOST` | Same host IP for production stack (ADR 013) | `gh secret set PRODUCTION_HOST --org roamkit-net` |
+| `PRODUCTION_SSH_KEY` | SSH key for production deploy (may equal staging key) | `gh secret set PRODUCTION_SSH_KEY --org roamkit-net` |
 | `GHCR_TOKEN` | Pull/push container images | `gh secret set GHCR_TOKEN --org roamkit-net` |
 
 ### Staging host (confirmed)
@@ -93,3 +95,29 @@ POLYGON_MIN_CONFIRMATIONS=20
 - After editing `.env`, recreate api/celery: `docker compose --profile app up -d api celery celery-beat`
 - Verify with `./scripts/staging-dod-billing.sh` (deposit-info → verify → ledger → balance → order).
   Optional real on-chain path: `VERIFY_TX_HASH=0x... ./scripts/staging-dod-billing.sh`
+
+## Production secrets (ADR 013 / Faza 4 PR1)
+
+Runtime secrets live only on the server:
+
+| Path | Contents |
+|------|----------|
+| `/opt/stacks/roamkit-production/.env` | App env (chmod 600); from `docker/.env.production.example` |
+| `/opt/stacks/roamkit-production/.secrets/` | Offline material e.g. wallet private key (chmod 700 dir / 600 files) |
+
+Isolation vs staging:
+
+- `POSTGRES_DB=roamkit_production` (not `roamkit`)
+- `REDIS_URL=redis://infra-redis:6379/5` (staging uses `/4`)
+
+Lifecycle (create / rotate / backup): see `bootstrap/hetzner/PRODUCTION_PLAN.md` § Secrets lifecycle.
+
+Org secrets for future `deploy-production` CI:
+
+```bash
+echo -n "65.108.196.92" | gh secret set PRODUCTION_HOST --org roamkit-net
+# Often identical to staging key on the same host:
+gh secret set PRODUCTION_SSH_KEY --org roamkit-net < ~/.ssh/id_ed25519
+```
+
+Cutover flag matrix remains: Billing ON, WalletConnect OFF, Subscriptions OFF.

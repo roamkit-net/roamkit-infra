@@ -1,0 +1,148 @@
+# Hetzner production stack — /opt/stacks/roamkit-production/docker-compose.yml
+# Server pulls images from GHCR only; never builds on host.
+# Routing via shared host Traefik (network: proxy) — no per-stack nginx.
+#
+# Isolation (ADR 013):
+#   - Separate PostGIS database name (default: roamkit_production)
+#   - Separate Redis DB index (default: 5; staging uses 4)
+#   - No shared Docker volumes with staging stack
+#   - Own stack dir: /opt/stacks/roamkit-production/
+#
+# Cutover note: apex/www Host rules are declared here. Staging still routes
+# roamkit.net/www until cutover day (PR2) — do not flip DNS/Traefik Host on
+# staging until production smoke is green.
+
+services:
+  api:
+    profiles: [app]
+    image: ${API_IMAGE}
+    container_name: roamkit-api-production
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ROAMKIT_ENVIRONMENT: production
+    networks:
+      postgis: {}
+      hetzner_net: {}
+      proxy: {}
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.roamkit-api-production.rule=Host(`api.roamkit.net`)
+      - traefik.http.routers.roamkit-api-production.entrypoints=websecure
+      - traefik.http.routers.roamkit-api-production.tls=true
+      - traefik.http.routers.roamkit-api-production.tls.certresolver=cloudflare
+      - traefik.http.routers.roamkit-api-production.service=roamkit-api-production
+      - traefik.http.services.roamkit-api-production.loadbalancer.server.port=8000
+    # Healthy = process accepts HTTP on /health/live (liveness).
+    # Deploy script additionally requires /health/ready (DB/Redis).
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/live')",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  celery:
+    profiles: [app]
+    image: ${API_IMAGE}
+    container_name: roamkit-celery-production
+    restart: unless-stopped
+    command: celery -A config worker -l info
+    env_file:
+      - .env
+    environment:
+      ROAMKIT_ENVIRONMENT: production
+    networks:
+      postgis: {}
+      hetzner_net: {}
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+
+  celery-beat:
+    profiles: [app]
+    image: ${API_IMAGE}
+    container_name: roamkit-celery-beat-production
+    restart: unless-stopped
+    command: celery -A config beat -l info -s /tmp/celerybeat-schedule
+    env_file:
+      - .env
+    environment:
+      ROAMKIT_ENVIRONMENT: production
+    networks:
+      postgis: {}
+      hetzner_net: {}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+
+  web:
+    profiles: [app]
+    image: ${WEB_IMAGE}
+    container_name: roamkit-web-production
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ROAMKIT_ENVIRONMENT: production
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - proxy
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.roamkit-web-production.rule=Host(`roamkit.net`) || Host(`www.roamkit.net`)
+      - traefik.http.routers.roamkit-web-production.entrypoints=websecure
+      - traefik.http.routers.roamkit-web-production.tls=true
+      - traefik.http.routers.roamkit-web-production.tls.certresolver=cloudflare
+      - traefik.http.routers.roamkit-web-production.service=roamkit-web-production
+      - traefik.http.services.roamkit-web-production.loadbalancer.server.port=3000
+    # Healthy = origin returns HTTP 200 for /
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  postgis:
+    external: true
+  hetzner_net:
+    external: true
+  proxy:
+    external: true
