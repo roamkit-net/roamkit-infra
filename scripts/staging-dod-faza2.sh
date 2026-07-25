@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 2 staging DoD: register → (optional sandbox) → me/esims.
+# Phase 2 staging DoD: register → activate → token → (optional sandbox) → me/esims.
 #
 # Usage:
 #   ./scripts/staging-dod-faza2.sh
@@ -32,7 +32,7 @@ json_field() {
 echo "Phase 2 staging DoD against ${API_URL}"
 echo "Email: ${DOD_EMAIL}"
 
-for path in /login /register /me/esims; do
+for path in /login /register /forgot-password /set-password /reset-password /me/esims; do
   code="$(curl -4s -o /dev/null -w "%{http_code}" --max-time "${TIMEOUT}" "${WEB_URL}${path}")" \
     || fail "web ${path} unreachable"
   [[ "${code}" == "200" ]] || fail "web ${path} expected 200, got ${code}"
@@ -40,10 +40,39 @@ done
 
 reg_body="$(curl -4s --max-time "${TIMEOUT}" -X POST "${API_URL}/api/v1/auth/register/" \
   -H "Content-Type: application/json" \
-  -d "{\"email\":\"${DOD_EMAIL}\",\"password\":\"${DOD_PASSWORD}\"}")" \
+  -d "{\"email\":\"${DOD_EMAIL}\"}")" \
   || fail "register request failed"
-echo "${reg_body}" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert "email" in d, d' \
-  || fail "register did not return user payload: ${reg_body}"
+echo "${reg_body}" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert "detail" in d, d' \
+  || fail "register did not return generic detail: ${reg_body}"
+
+# Activate via Django shell on the staging host (reads pending user + token).
+# When running off-host without SSH/docker, set ACTIVATE_UID + ACTIVATE_TOKEN from the email.
+if [[ -n "${ACTIVATE_UID:-}" && -n "${ACTIVATE_TOKEN:-}" ]]; then
+  UID_B64="${ACTIVATE_UID}"
+  ACT_TOKEN="${ACTIVATE_TOKEN}"
+else
+  activate_meta="$(
+    cd "${STACK_DIR}"
+    docker compose --profile app exec -T api \
+      python manage.py shell -c "
+import json
+from django.contrib.auth import get_user_model
+from apps.accounts.services.email import uid_for_user
+from apps.accounts.tokens import account_activation_token
+user = get_user_model().objects.get(email='${DOD_EMAIL}')
+print(json.dumps({'uid': uid_for_user(user), 'token': account_activation_token.make_token(user)}))
+"
+  )" || fail "could not mint activation token on staging (set ACTIVATE_UID/ACTIVATE_TOKEN or run on host)"
+  UID_B64="$(echo "${activate_meta}" | json_field "['uid']")"
+  ACT_TOKEN="$(echo "${activate_meta}" | json_field "['token']")"
+fi
+
+act_body="$(curl -4s --max-time "${TIMEOUT}" -X POST "${API_URL}/api/v1/auth/activate/" \
+  -H "Content-Type: application/json" \
+  -d "{\"uid\":\"${UID_B64}\",\"token\":\"${ACT_TOKEN}\",\"password\":\"${DOD_PASSWORD}\",\"password_confirm\":\"${DOD_PASSWORD}\"}")" \
+  || fail "activate request failed"
+echo "${act_body}" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("email"), d' \
+  || fail "activate did not return user: ${act_body}"
 
 tok_body="$(curl -4s --max-time "${TIMEOUT}" -X POST "${API_URL}/api/v1/auth/token/" \
   -H "Content-Type: application/json" \
@@ -51,6 +80,50 @@ tok_body="$(curl -4s --max-time "${TIMEOUT}" -X POST "${API_URL}/api/v1/auth/tok
   || fail "token request failed"
 ACCESS="$(echo "${tok_body}" | json_field "['access']")" \
   || fail "token response missing access: ${tok_body}"
+
+# Password-reset round-trip (request always 200; confirm via minted token on host).
+reset_req="$(curl -4s --max-time "${TIMEOUT}" -X POST "${API_URL}/api/v1/auth/password-reset/" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"${DOD_EMAIL}\"}")" \
+  || fail "password-reset request failed"
+echo "${reset_req}" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert "detail" in d, d' \
+  || fail "password-reset missing detail: ${reset_req}"
+
+if [[ -n "${RESET_UID:-}" && -n "${RESET_TOKEN:-}" ]]; then
+  R_UID="${RESET_UID}"
+  R_TOKEN="${RESET_TOKEN}"
+else
+  reset_meta="$(
+    cd "${STACK_DIR}"
+    docker compose --profile app exec -T api \
+      python manage.py shell -c "
+import json
+from django.contrib.auth import get_user_model
+from apps.accounts.services.email import uid_for_user
+from apps.accounts.tokens import password_reset_token
+user = get_user_model().objects.get(email='${DOD_EMAIL}')
+print(json.dumps({'uid': uid_for_user(user), 'token': password_reset_token.make_token(user)}))
+"
+  )" || fail "could not mint reset token on staging (set RESET_UID/RESET_TOKEN or run on host)"
+  R_UID="$(echo "${reset_meta}" | json_field "['uid']")"
+  R_TOKEN="$(echo "${reset_meta}" | json_field "['token']")"
+fi
+
+NEW_PASSWORD="${DOD_PASSWORD}-r"
+reset_confirm="$(curl -4s --max-time "${TIMEOUT}" -X POST "${API_URL}/api/v1/auth/password-reset/confirm/" \
+  -H "Content-Type: application/json" \
+  -d "{\"uid\":\"${R_UID}\",\"token\":\"${R_TOKEN}\",\"password\":\"${NEW_PASSWORD}\",\"password_confirm\":\"${NEW_PASSWORD}\"}")" \
+  || fail "password-reset confirm failed"
+echo "${reset_confirm}" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert "detail" in d, d' \
+  || fail "password-reset confirm unexpected: ${reset_confirm}"
+
+tok_body="$(curl -4s --max-time "${TIMEOUT}" -X POST "${API_URL}/api/v1/auth/token/" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"${DOD_EMAIL}\",\"password\":\"${NEW_PASSWORD}\"}")" \
+  || fail "token after reset failed"
+ACCESS="$(echo "${tok_body}" | json_field "['access']")" \
+  || fail "token after reset missing access: ${tok_body}"
+DOD_PASSWORD="${NEW_PASSWORD}"
 
 if [[ "${CREATE_SANDBOX}" == "1" && "${SKIP_SANDBOX}" != "1" ]]; then
   if [[ -z "${PACKAGE_ID}" ]]; then

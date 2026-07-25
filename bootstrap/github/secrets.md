@@ -58,3 +58,17 @@ gh secret list --repo roamkit-net/roamkit-api
 
 Staging `.env` on Hetzner (`/opt/stacks/roamkit-net/.env`) holds runtime secrets.
 GitHub Actions injects deploy credentials only; app secrets are on the server.
+
+SMTP for auth emails (activation + password reset) lives on the server `.env` — do not commit:
+
+```
+EMAIL_HOST=mail.roamkit.net
+EMAIL_PORT=587
+EMAIL_USE_TLS=true
+EMAIL_HOST_USER=info@roamkit.net
+EMAIL_HOST_PASSWORD=<mailbox password>
+DEFAULT_FROM_EMAIL=noreply@roamkit.net
+FRONTEND_BASE_URL=https://staging.roamkit.net
+```
+
+`EMAIL_HOST_PASSWORD` is a server secret only (not a GitHub Actions secret unless you automate `.env` provisioning).
