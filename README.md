@@ -60,6 +60,19 @@ cd /opt/stacks/roamkit-net && ./scripts/deploy-staging.sh
 
 SSH from WSL: `ssh dedicated-hel1` (root@65.108.196.92)
 
+### Billing smoke (Polygon USDT)
+
+1. Set `BILLING_*` / `POLYGON_*` on `/opt/stacks/roamkit-net/.env` (template: `docker/.env.staging.example`).
+2. Recreate api/celery so env is loaded.
+3. Run:
+
+```bash
+# On host (or scp scripts/staging-dod-billing.sh first)
+./scripts/staging-dod-billing.sh
+```
+
+Post-deploy health smoke (`scripts/smoke-test.sh`) also checks `/me/deposit` and unauthenticated billing 401s. Full money path (ledger/order) is the DoD script above.
+
 ## CI templates
 
 Copy workflows from `ci/workflows/` into each repo's `.github/workflows/` or into the org `.github` repo as reusable workflows.

@@ -72,3 +72,24 @@ FRONTEND_BASE_URL=https://staging.roamkit.net
 ```
 
 `EMAIL_HOST_PASSWORD` is a server secret only (not a GitHub Actions secret unless you automate `.env` provisioning).
+
+## Staging billing (Polygon USDT — ADR-010)
+
+Runtime flags live on the server `.env` (see `docker/.env.staging.example`), not in GitHub Actions:
+
+```
+BILLING_ENABLED=true
+SUBSCRIPTIONS_ENABLED=false
+WALLETCONNECT_ENABLED=false
+POLYGON_RPC_URL=https://polygon-bor-rpc.publicnode.com
+POLYGON_PLATFORM_WALLET=0x...
+POLYGON_USDT_CONTRACT=0xc2132D05D31c914a87C6611C10748AEb04B58e8F
+POLYGON_CHAIN_ID=137
+POLYGON_MIN_CONFIRMATIONS=20
+```
+
+- Keep `WALLETCONNECT_ENABLED=false` until Reown AppKit is confirmed on staging.
+- Store the platform wallet **private key** only under `/opt/stacks/roamkit-net/.secrets/` (chmod 600); never commit it.
+- After editing `.env`, recreate api/celery: `docker compose --profile app up -d api celery celery-beat`
+- Verify with `./scripts/staging-dod-billing.sh` (deposit-info → verify → ledger → balance → order).
+  Optional real on-chain path: `VERIFY_TX_HASH=0x... ./scripts/staging-dod-billing.sh`

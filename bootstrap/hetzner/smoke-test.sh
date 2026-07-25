@@ -64,7 +64,12 @@ wait_for "${WEB_URL}/" "web root"
 expect_http "${WEB_URL}/login" "200" "web /login"
 expect_http "${WEB_URL}/register" "200" "web /register"
 expect_http "${WEB_URL}/me/esims" "200" "web /me/esims"
+expect_http "${WEB_URL}/me/deposit" "200" "web /me/deposit"
 expect_http "${WEB_URL}/plans" "200" "web /plans"
+
+# Billing HTTP is JWT-only (404 when BILLING_ENABLED=false).
+expect_http "${API_URL}/api/v1/billing/balance/" "401" "billing/balance without JWT"
+expect_http "${API_URL}/api/v1/billing/deposit-info/" "401" "billing/deposit-info without JWT"
 
 curl -4sf --max-time "${TIMEOUT}" "${MARKETING_URL}/" >/dev/null   || fail "marketing root unreachable"
 
