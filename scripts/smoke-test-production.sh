@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
-# Production HTTP smoke (platform health). Billing E2E DoD is PR2.
+# Production HTTP smoke (platform health). Billing E2E: production-dod-billing.sh.
 set -euo pipefail
 
 API_URL="${API_URL:-https://api.roamkit.net}"
 WEB_URL="${WEB_URL:-https://roamkit.net}"
-
-# During pre-cutover dry-run on host, prefer in-compose curls via deploy script.
-# This script is for post-Traefik public checks (or override URLs for local).
 
 fail() {
   echo "PRODUCTION SMOKE FAILED: $*" >&2
@@ -19,12 +16,16 @@ curl -sfI --max-time 20 "${WEB_URL}/" >/dev/null || fail "web ${WEB_URL}/"
 curl -sf --max-time 20 "${API_URL}/health/live" >/dev/null || fail "api live"
 curl -sf --max-time 20 "${API_URL}/health/ready" >/dev/null || fail "api ready"
 
-# /version is api PR2 must-have — warn until present, do not fail PR1 platform smoke.
-if curl -sf --max-time 10 "${API_URL}/version" >/dev/null 2>&1; then
-  echo "GET /version OK"
-else
-  echo "WARN: GET /version not available yet (expected until api PR2)."
-fi
+# Gate C / ADR 013 must-have: non-empty git_sha
+version_json="$(curl -sf --max-time 10 "${API_URL}/version")" \
+  || fail "GET /version missing (Gate C must-have)"
+echo "${version_json}" | python3 -c '
+import json,sys
+d=json.load(sys.stdin)
+sha=(d.get("git_sha") or "").strip()
+assert sha, d
+print("GET /version OK git_sha=%s…" % (sha[:12],))
+' || fail "GET /version empty git_sha: ${version_json}"
 
 # Unauthenticated billing money endpoints should 401 when billing enabled.
 code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "${API_URL}/api/v1/billing/balance/" || true)"
