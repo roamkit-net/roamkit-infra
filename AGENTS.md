@@ -181,8 +181,8 @@ RoamKit CI uses **org self-hosted runners**, not GitHub-hosted `ubuntu-latest`.
 
 | `runs-on` | Runner | Typical jobs |
 |-----------|--------|----------------|
-| `[self-hosted, roamkit, default]` | `runner` | lint, Node CI, deploy |
-| `[self-hosted, roamkit, docker]` | `docker-runner` | Docker build/push; API jobs that need Docker Compose (tests, migration smoke) |
+| `[self-hosted, linux, x64, roamkit, default]` | `runner` | lint, Node CI, deploy |
+| `[self-hosted, linux, x64, roamkit, docker]` | `docker-runner` | Docker build/push; API jobs that need Docker Compose (tests, migration smoke) |
 
 Do not switch workflows back to `ubuntu-latest` without an explicit human decision.
 Keep app-repo workflows aligned with templates under `roamkit-infra/ci/workflows/`.

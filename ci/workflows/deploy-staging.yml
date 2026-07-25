@@ -12,7 +12,12 @@ on:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, roamkit, default]
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - roamkit
+      - default
     if: github.ref == 'refs/heads/develop'
     environment: staging
     steps:

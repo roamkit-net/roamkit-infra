@@ -19,7 +19,12 @@ on:
 
 jobs:
   build:
-    runs-on: [self-hosted, roamkit, docker]
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - roamkit
+      - docker
     permissions:
       contents: read
       packages: write
