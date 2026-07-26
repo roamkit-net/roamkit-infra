@@ -71,6 +71,58 @@ expect_http "${WEB_URL}/plans" "200" "web /plans"
 expect_http "${API_URL}/api/v1/billing/balance/" "401" "billing/balance without JWT"
 expect_http "${API_URL}/api/v1/billing/deposit-info/" "401" "billing/deposit-info without JWT"
 
+# Catalog price display dependency (hard fail).
+billing_cfg="$(curl -4sf --max-time "${TIMEOUT}" "${API_URL}/api/v1/billing/config/")" \
+  || fail "billing/config unreachable"
+echo "${billing_cfg}" | jq -e '
+  (.token_symbol | type == "string" and length > 0)
+  and (.display_decimals != null)
+  and (.config_version | type == "number")
+' >/dev/null || fail "billing/config invalid payload: ${billing_cfg}"
+echo "billing/config OK"
+
+# Web release fingerprint (soft if route not deployed yet).
+web_ver_code="$(curl -4s -o /tmp/roamkit_web_version.json -w "%{http_code}" --max-time "${TIMEOUT}" "${WEB_URL}/version" || true)"
+if [[ "${web_ver_code}" == "200" ]]; then
+  jq -e '(.git_sha | type == "string" and length > 0)' /tmp/roamkit_web_version.json >/dev/null \
+    || fail "web /version empty git_sha"
+  echo "web /version OK"
+else
+  echo "WARN: web /version HTTP ${web_ver_code} (expected after web fingerprint deploy)"
+fi
+
+# Baked NEXT_PUBLIC_API_URL host in client chunks (staging).
+html="$(curl -4sf --max-time "${TIMEOUT}" "${WEB_URL}/")" || fail "web root body"
+mapfile -t chunks < <(echo "${html}" | grep -oE '/_next/static/chunks/[^"]+\.js' | head -15)
+found_staging=0
+found_prod=0
+for chunk in "${chunks[@]:-}"; do
+  js="$(curl -4sf --max-time "${TIMEOUT}" "${WEB_URL}${chunk}" || true)"
+  [[ -z "${js}" ]] && continue
+  echo "${js}" | grep -q "api.staging.roamkit.net" && found_staging=1
+  echo "${js}" | grep -q "api.roamkit.net" && found_prod=1
+done
+if [[ "${found_staging}" -eq 1 ]]; then
+  echo "web bake host OK (api.staging.roamkit.net)"
+elif [[ "${#chunks[@]}" -eq 0 ]]; then
+  echo "WARN: no /_next/static chunk found to assert API host"
+else
+  fail "staging web bundle missing api.staging.roamkit.net"
+fi
+if [[ "${found_prod}" -eq 1 ]]; then
+  fail "staging web bundle must not bake api.roamkit.net"
+fi
+
 curl -4sf --max-time "${TIMEOUT}" "${MARKETING_URL}/" >/dev/null   || fail "marketing root unreachable"
+
+# Soft parity vs production (never fails deploy).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -x "${SCRIPT_DIR}/warn-billing-config-parity.sh" ]]; then
+  STAGING_API_URL="${API_URL}" PROD_API_URL="https://api.roamkit.net" \
+    "${SCRIPT_DIR}/warn-billing-config-parity.sh" || true
+elif [[ -x "${SCRIPT_DIR}/../scripts/warn-billing-config-parity.sh" ]]; then
+  STAGING_API_URL="${API_URL}" PROD_API_URL="https://api.roamkit.net" \
+    "${SCRIPT_DIR}/../scripts/warn-billing-config-parity.sh" || true
+fi
 
 echo "SMOKE TEST PASSED"
