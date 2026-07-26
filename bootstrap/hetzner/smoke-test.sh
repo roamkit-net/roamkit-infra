@@ -48,15 +48,18 @@ curl -4sf --max-time "${TIMEOUT}" "${API_URL}/health/ready" >/dev/null   || fail
 
 curl -4sf --max-time "${TIMEOUT}" "${API_URL}/api/v1/packages/" >/dev/null   || fail "/api/v1/packages/ unreachable"
 
-# Phase 2 auth: unauthenticated /me must reject; register without body must validate.
+# Phase 2 auth: unauthenticated /me must reject; register without body must
+# validate (400) or be rate-limited (429). Both prove the auth stack is up —
+# 429 alone must not fail deploy after ops/E2E burned the register budget.
 expect_http "${API_URL}/api/v1/auth/me/" "401" "auth/me without JWT"
 reg_code="$(curl -4s -o /dev/null -w "%{http_code}" --max-time "${TIMEOUT}" \
   -X POST "${API_URL}/api/v1/auth/register/" \
   -H "Content-Type: application/json" \
   -d '{}')" || fail "auth/register unreachable"
-if [[ "${reg_code}" != "400" ]]; then
-  fail "auth/register expected HTTP 400 for empty body, got ${reg_code}"
-fi
+case "${reg_code}" in
+  400|429) echo "auth/register OK (HTTP ${reg_code})" ;;
+  *) fail "auth/register expected HTTP 400 or 429 for empty body, got ${reg_code}" ;;
+esac
 
 # Web can briefly 502 while nginx reconnects after container recreate.
 wait_for "${WEB_URL}/" "web root"
