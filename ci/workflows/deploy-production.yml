@@ -1,4 +1,8 @@
 # Deploy to Hetzner production on merge to main (ADR 013 / Gate C)
+#
+# Secrets: set PRODUCTION_HOST and PRODUCTION_SSH_KEY on GitHub Environment
+# "production". Do not pass them from the caller — caller context has no
+# access to that environment and would override with empty values.
 
 name: Deploy Production
 
@@ -9,11 +13,6 @@ on:
         required: false
         type: string
         default: /opt/stacks/roamkit-production
-    secrets:
-      PRODUCTION_HOST:
-        required: true
-      PRODUCTION_SSH_KEY:
-        required: true
 
 jobs:
   deploy:
@@ -27,6 +26,25 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate production secrets
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+        run: |
+          missing=0
+          if [ -z "${PRODUCTION_HOST}" ]; then
+            echo "::error::Missing PRODUCTION_HOST — add it under Settings → Environments → production"
+            missing=1
+          fi
+          if [ -z "${PRODUCTION_SSH_KEY}" ]; then
+            echo "::error::Missing PRODUCTION_SSH_KEY — add it under Settings → Environments → production"
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+          echo "Production deploy secrets are present."
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
