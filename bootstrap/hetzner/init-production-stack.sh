@@ -36,6 +36,8 @@ copy_from_local() {
   cp "${INFRA_ROOT}/scripts/deploy-production.sh" "${STACK_DIR}/scripts/deploy-production.sh"
   cp "${INFRA_ROOT}/scripts/rollback-production.sh" "${STACK_DIR}/scripts/rollback-production.sh"
   cp "${INFRA_ROOT}/scripts/smoke-test-production.sh" "${STACK_DIR}/scripts/smoke-test-production.sh"
+  cp "${INFRA_ROOT}/scripts/assert-billing-config.sh" "${STACK_DIR}/scripts/assert-billing-config.sh"
+  cp "${INFRA_ROOT}/scripts/warn-billing-config-parity.sh" "${STACK_DIR}/scripts/warn-billing-config-parity.sh"
   cp "${INFRA_ROOT}/bootstrap/hetzner/PRODUCTION_PLAN.md" "${STACK_DIR}/PLAN.md"
   cp "${INFRA_ROOT}/bootstrap/hetzner/plan.production.yaml" "${STACK_DIR}/plan.yaml"
   chmod +x "${STACK_DIR}/scripts/"*.sh
@@ -53,6 +55,8 @@ else
   cp "${TMP_DIR}/scripts/deploy-production.sh" "${STACK_DIR}/scripts/deploy-production.sh"
   cp "${TMP_DIR}/scripts/rollback-production.sh" "${STACK_DIR}/scripts/rollback-production.sh"
   cp "${TMP_DIR}/scripts/smoke-test-production.sh" "${STACK_DIR}/scripts/smoke-test-production.sh"
+  cp "${TMP_DIR}/scripts/assert-billing-config.sh" "${STACK_DIR}/scripts/assert-billing-config.sh"
+  cp "${TMP_DIR}/scripts/warn-billing-config-parity.sh" "${STACK_DIR}/scripts/warn-billing-config-parity.sh"
   cp "${TMP_DIR}/bootstrap/hetzner/PRODUCTION_PLAN.md" "${STACK_DIR}/PLAN.md"
   cp "${TMP_DIR}/bootstrap/hetzner/plan.production.yaml" "${STACK_DIR}/plan.yaml"
   chmod +x "${STACK_DIR}/scripts/"*.sh
