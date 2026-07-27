@@ -80,7 +80,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=proxy
-      - traefik.http.routers.roamkit-web.rule=Host(`roamkit.net`) || Host(`www.roamkit.net`) || Host(`staging.roamkit.net`)
+      - traefik.http.routers.roamkit-web.rule=Host(`staging.roamkit.net`)
       - traefik.http.routers.roamkit-web.entrypoints=websecure
       - traefik.http.routers.roamkit-web.tls=true
       - traefik.http.routers.roamkit-web.tls.certresolver=cloudflare

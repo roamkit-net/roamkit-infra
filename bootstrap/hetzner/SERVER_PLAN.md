@@ -99,11 +99,14 @@ Obavezno promijeni (ne ostavljaj `change-me`):
 - [ ] `DJANGO_SECRET_KEY` — jak random (50+ znakova)
 - [ ] `DJANGO_SETTINGS_MODULE=config.settings.staging`
 - [ ] `DJANGO_DEBUG=false`
-- [ ] `DJANGO_ALLOWED_HOSTS=api.staging.roamkit.net,staging.roamkit.net,roamkit.net,www.roamkit.net`
+- [ ] `DJANGO_ALLOWED_HOSTS=api.staging.roamkit.net,staging.roamkit.net,localhost,127.0.0.1` (nema apex/www — to je production)
 - [ ] `NEXT_PUBLIC_API_URL=https://api.staging.roamkit.net`
+- [ ] Traefik web router: samo `Host(\`staging.roamkit.net\`)`
 
-Kasnije (Faza 1+):
-- [ ] `AIRALO_CLIENT_ID` / `AIRALO_CLIENT_SECRET`
+Kasnije (Faza 1+ / Phase 7):
+- [ ] `AIRALO_*` — samo Roamkit-Sandbox; `AIRALO_SANDBOX=true`; nikad Fine Star live keys
+- [ ] `AIRALO_ENABLED=false` dok sandbox ključevi nisu spremni
+- [ ] `AIRALO_BLOCKED_CLIENT_IDS` = Fine Star live `client_id`
 - [ ] `STRIPE_*` (test ključevi)
 
 Spremi: `chmod 600 .env`

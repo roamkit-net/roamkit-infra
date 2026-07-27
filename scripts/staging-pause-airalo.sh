@@ -81,7 +81,12 @@ import sys
 path = sys.argv[1]
 lines = open(path, encoding="utf-8").read().splitlines(True)
 out = []
-have = {"AIRALO_CLIENT_ID": False, "AIRALO_CLIENT_SECRET": False, "AIRALO_SANDBOX": False}
+have = {
+    "AIRALO_CLIENT_ID": False,
+    "AIRALO_CLIENT_SECRET": False,
+    "AIRALO_SANDBOX": False,
+    "AIRALO_ENABLED": False,
+}
 for line in lines:
     s = line.strip()
     if s and not s.startswith("#") and "=" in s:
@@ -92,6 +97,8 @@ for line in lines:
             out.append("AIRALO_CLIENT_SECRET=\n"); have[k] = True; continue
         if k == "AIRALO_SANDBOX":
             out.append("AIRALO_SANDBOX=true\n"); have[k] = True; continue
+        if k == "AIRALO_ENABLED":
+            out.append("AIRALO_ENABLED=false\n"); have[k] = True; continue
     out.append(line)
 if not have["AIRALO_CLIENT_ID"]:
     out.append("AIRALO_CLIENT_ID=\n")
@@ -99,6 +106,8 @@ if not have["AIRALO_CLIENT_SECRET"]:
     out.append("AIRALO_CLIENT_SECRET=\n")
 if not have["AIRALO_SANDBOX"]:
     out.append("AIRALO_SANDBOX=true\n")
+if not have["AIRALO_ENABLED"]:
+    out.append("AIRALO_ENABLED=false\n")
 open(path, "w", encoding="utf-8").writelines(out)
 print("paused AIRALO credentials on staging")
 PY
@@ -108,6 +117,8 @@ docker compose --profile app exec -T api python -c '
 from django.conf import settings
 assert not (settings.AIRALO_CLIENT_ID or "").strip()
 assert settings.AIRALO_SANDBOX is True
+enabled = getattr(settings, "AIRALO_ENABLED", True)
+assert enabled is False or not (settings.AIRALO_CLIENT_ID or "").strip()
 print("staging Airalo paused OK")
 '
 echo "STAGING AIRALO PAUSED — restore with: $0 restore"
