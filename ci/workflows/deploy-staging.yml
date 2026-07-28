@@ -12,7 +12,12 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - roamkit
+      - default
     if: github.ref == 'refs/heads/develop'
     environment: staging
     steps:
@@ -26,12 +31,27 @@ jobs:
           key: ${{ secrets.STAGING_SSH_KEY }}
           script: |
             cd ${{ inputs.stack-dir }}
-            export API_IMAGE=ghcr.io/roamkit/roamkit-api:${{ github.sha }}
-            export WEB_IMAGE=ghcr.io/roamkit/roamkit-web:${{ github.sha }}
+            export API_IMAGE=ghcr.io/roamkit-net/roamkit-api:${{ github.sha }}
+            export WEB_IMAGE=ghcr.io/roamkit-net/roamkit-web:${{ github.sha }}
             ./scripts/deploy-staging.sh
 
       - name: Smoke test (from runner)
         run: |
-          curl -sf https://api.staging.roamkit.net/health/live
-          curl -sf https://api.staging.roamkit.net/health/ready
-          curl -sf https://staging.roamkit.net/
+          # Prefer IPv4: Cloudflare AAAA for marketing/staging can fail from the runner
+          # while on-host smoke already uses curl -4 (see smoke-test.sh).
+          wait_http() {
+            local url="$1"
+            local i
+            for i in $(seq 1 20); do
+              if curl -4sf --max-time 15 "${url}" >/dev/null; then
+                return 0
+              fi
+              sleep 3
+            done
+            echo "Smoke failed: ${url}" >&2
+            return 1
+          }
+          wait_http https://roamkit.net/
+          wait_http https://staging.roamkit.net/
+          wait_http https://api.staging.roamkit.net/health/live
+          wait_http https://api.staging.roamkit.net/health/ready

@@ -1,17 +1,17 @@
 # roamkit-infra
 
-Infrastructure as Code for [RoamKit](https://github.com/roamkit). This is the **first repo** in the org — bootstrap, compose, CI templates, and deploy scripts live here before `roamkit-api` and `roamkit-web` exist.
+Infrastructure as Code for [RoamKit](https://github.com/roamkit-net). This is the **first repo** in the org — bootstrap, compose, CI templates, and deploy scripts live here before `roamkit-api` and `roamkit-web` exist.
 
 ## Layout
 
 ```
 bootstrap/          # One-time org + server setup (gh CLI, Hetzner)
-docker/             # Compose stacks (dev, staging, test)
+docker/             # Compose stacks (dev, staging, production, test)
 ci/workflows/       # Reusable GitHub Actions templates
-scripts/            # Deploy + rollback automation
+scripts/            # Deploy + rollback automation (staging + production)
 ```
 
-Staging uses **shared host Traefik** (`proxy` network) and **shared PostGIS/Redis** — see `bootstrap/hetzner/prerequisites.md` and `plan.yaml`.
+Staging and production both use **shared host Traefik** (`proxy`) and **shared PostGIS/Redis hosts** with **isolated DB name + Redis index** ([ADR 013](https://github.com/roamkit-net/roamkit-docs/blob/develop/docs/adr/013-production-launch.md)). See `bootstrap/hetzner/prerequisites.md`, `plan.yaml` (staging), `plan.production.yaml` (production).
 
 ## Quick start (local dev)
 
@@ -60,17 +60,54 @@ cd /opt/stacks/roamkit-net && ./scripts/deploy-staging.sh
 
 SSH from WSL: `ssh dedicated-hel1` (root@65.108.196.92)
 
+### Billing smoke (Polygon USDT)
+
+1. Set `BILLING_*` / `POLYGON_*` on `/opt/stacks/roamkit-net/.env` (template: `docker/.env.staging.example`).
+2. Recreate api/celery so env is loaded.
+3. Run:
+
+```bash
+# On host (or scp scripts/staging-dod-billing.sh first)
+./scripts/staging-dod-billing.sh
+```
+
+Post-deploy health smoke (`scripts/smoke-test.sh`) also checks `/me/deposit` and unauthenticated billing 401s. Full money path (ledger/order) is the DoD script above.
+
+## Production platform (Faza 4 PR1)
+
+Production stack: `/opt/stacks/roamkit-production/`
+
+- Isolation: DB `roamkit_production`, Redis index **5**, own `.secrets/`, no shared volumes with staging
+- Compose: `docker/docker-compose.production.yml`
+- Env template: `docker/.env.production.example`
+- Runbook: `bootstrap/hetzner/PRODUCTION_PLAN.md`
+- Spec: `bootstrap/hetzner/plan.production.yaml`
+
+```bash
+# On server (once)
+bash bootstrap/hetzner/init-production-stack.sh
+# create DB roamkit_production, edit .env, then:
+cd /opt/stacks/roamkit-production && ./scripts/deploy-production.sh
+
+# Rollback N → N-1
+./scripts/rollback-production.sh && ./scripts/smoke-test-production.sh
+```
+
+**Out of scope for PR1:** DNS/apex cutover, `roamkit-api`/`roamkit-web` code, `/version` implementation, billing E2E prod DoD (PR2), Sentry (PR3).
+
+Rule: if a change requires editing `roamkit-api` or `roamkit-web`, open a **separate** PR — do not fold it into infra PR1.
+
 ## CI templates
 
 Copy workflows from `ci/workflows/` into each repo's `.github/workflows/` or into the org `.github` repo as reusable workflows.
 
 ## Branch strategy
 
-| Branch      | Deploy                   |
-|-------------|--------------------------|
-| `main`      | CI only — no auto-deploy |
-| `develop`   | Auto-deploy to staging   |
-| `feature/*` | PR → develop             |
+| Branch      | Deploy                                       |
+|-------------|----------------------------------------------|
+| `main`      | Production (when deploy CI exists — ADR 013) |
+| `develop`   | Auto-deploy to staging                       |
+| `feature/*` | PR → develop                                 |
 
 ## Related repos
 

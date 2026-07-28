@@ -25,7 +25,13 @@ services:
       - traefik.http.routers.roamkit-api.service=roamkit-api
       - traefik.http.services.roamkit-api.loadbalancer.server.port=8000
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health/live || exit 1"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/live')",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -42,6 +48,22 @@ services:
     networks:
       postgis: {}
       hetzner_net: {}
+    healthcheck:
+      disable: true
+
+  celery-beat:
+    profiles: [app]
+    image: ${API_IMAGE}
+    container_name: roamkit-celery-beat-staging
+    restart: unless-stopped
+    command: celery -A config beat -l info -s /tmp/celerybeat-schedule
+    env_file:
+      - .env
+    networks:
+      postgis: {}
+      hetzner_net: {}
+    healthcheck:
+      disable: true
 
   web:
     profiles: [app]

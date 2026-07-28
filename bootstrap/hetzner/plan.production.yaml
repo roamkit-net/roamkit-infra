@@ -1,0 +1,88 @@
+# RoamKit production — declarative deployment spec (PR1 platform)
+# Stack: /opt/stacks/roamkit-production · ADR 013
+
+meta:
+  host: root@Ubuntu-2204-jammy-amd64-base
+  stack_dir: /opt/stacks/roamkit-production
+  origin_ip: 65.108.196.92
+  traefik_path: /opt/stacks/traefik
+  zone: roamkit.net
+  compose_file: docker-compose.yml
+  deploy_script: scripts/deploy-production.sh
+  rollback_script: scripts/rollback-production.sh
+  smoke_script: scripts/smoke-test-production.sh
+
+isolation:
+  postgres_db: roamkit_production
+  redis_db_index: 5
+  staging_postgres_db: roamkit
+  staging_redis_db_index: 4
+  shared_volumes_with_staging: false
+  secrets_dir: /opt/stacks/roamkit-production/.secrets
+
+prerequisites:
+  traefik:
+    container_name: traefik
+    network: proxy
+    cert_resolver: cloudflare
+    entrypoints: [websecure]
+  networks: [proxy, postgis, hetzner_net]
+  database:
+    create_once: "CREATE DATABASE roamkit_production OWNER roamkit;"
+
+dns:
+  zone: roamkit.net
+  production_records:
+    - name: "@"
+      fqdn: roamkit.net
+      purpose: production web (cutover PR2)
+    - name: www
+      fqdn: www.roamkit.net
+      purpose: production web (cutover PR2)
+    - name: api
+      fqdn: api.roamkit.net
+      purpose: production API (cutover PR2)
+  note: PR1 may bring stack up before DNS cutover; smoke can use compose exec until public HTTPS is live.
+
+env:
+  file: .env
+  permissions: "600"
+  template: docker/.env.production.example
+  required_secrets:
+    - POSTGRES_PASSWORD
+    - DJANGO_SECRET_KEY
+    - POLYGON_PLATFORM_WALLET
+    - AIRALO_CLIENT_ID
+    - AIRALO_CLIENT_SECRET
+  flags_at_cutover:
+    BILLING_ENABLED: true
+    WALLETCONNECT_ENABLED: false
+    SUBSCRIPTIONS_ENABLED: false
+
+health:
+  api_live: /health/live
+  api_ready: /health/ready
+  web_origin: "GET / → 200"
+  api_start_period_seconds: 90
+  deploy_ready_wait_attempts: 45
+  deploy_ready_wait_sleep_seconds: 2
+
+startup_order:
+  - api
+  - web (depends_on api healthy)
+  - celery (depends_on api healthy)
+  - celery-beat (depends_on api healthy)
+  - migrate (deploy script)
+  - smoke (deploy script)
+
+rollback:
+  tag_file: .previous-tag
+  command: ./scripts/rollback-production.sh
+  verify: ./scripts/smoke-test-production.sh
+
+release_metadata_env:
+  - ROAMKIT_GIT_SHA
+  - ROAMKIT_BUILD_DATE
+  - ROAMKIT_IMAGE_TAG
+  - ROAMKIT_ENVIRONMENT
+  note: Consumed by GET /version in api PR2 — not implemented in PR1.

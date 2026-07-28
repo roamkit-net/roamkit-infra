@@ -56,9 +56,13 @@ Zona: **`roamkit.net`**
 
 | Zapis | Tip | Ime | Vrijednost | Proxy |
 |-------|-----|-----|------------|-------|
+| Marketing | A | `@` | `65.108.196.92` | Proxied (narančasti oblak) |
+| Marketing www | A | `www` | `65.108.196.92` | Proxied |
 | Web staging | A | `staging` | `65.108.196.92` | Proxied (narančasti oblak) |
 | API staging | A | `api.staging` | `65.108.196.92` | Proxied |
 
+- [ ] `roamkit.net` → A → `65.108.196.92` (proxied)
+- [ ] `www.roamkit.net` → A → `65.108.196.92` (proxied)
 - [x] `staging.roamkit.net` → A → `65.108.196.92` (proxied)
 - [x] `api.staging.roamkit.net` → A → `65.108.196.92` (proxied)
 
@@ -68,6 +72,8 @@ Zona: **`roamkit.net`**
 Provjera s servera (nakon propagacije, 1–5 min):
 
 ```bash
+dig +short roamkit.net A
+dig +short www.roamkit.net A
 dig +short staging.roamkit.net A
 dig +short api.staging.roamkit.net A
 # Očekivano: Cloudflare proxy IP (ne nužno 65.108.196.92 — to je normalno za proxied)
@@ -93,11 +99,14 @@ Obavezno promijeni (ne ostavljaj `change-me`):
 - [ ] `DJANGO_SECRET_KEY` — jak random (50+ znakova)
 - [ ] `DJANGO_SETTINGS_MODULE=config.settings.staging`
 - [ ] `DJANGO_DEBUG=false`
-- [ ] `DJANGO_ALLOWED_HOSTS=api.staging.roamkit.net,staging.roamkit.net`
+- [ ] `DJANGO_ALLOWED_HOSTS=api.staging.roamkit.net,staging.roamkit.net,localhost,127.0.0.1` (nema apex/www — to je production)
 - [ ] `NEXT_PUBLIC_API_URL=https://api.staging.roamkit.net`
+- [ ] Traefik web router: samo `Host(\`staging.roamkit.net\`)`
 
-Kasnije (Faza 1+):
-- [ ] `AIRALO_CLIENT_ID` / `AIRALO_CLIENT_SECRET`
+Kasnije (Faza 1+ / Phase 7):
+- [ ] `AIRALO_*` — samo Roamkit-Sandbox; `AIRALO_SANDBOX=true`; nikad Fine Star live keys
+- [ ] `AIRALO_ENABLED=false` dok sandbox ključevi nisu spremni
+- [ ] `AIRALO_BLOCKED_CLIENT_IDS` = Fine Star live `client_id`
 - [ ] `STRIPE_*` (test ključevi)
 
 Spremi: `chmod 600 .env`
@@ -133,8 +142,8 @@ docker exec infra-redis redis-cli ping
 
 ```bash
 cd /opt/stacks/roamkit-net
-export API_IMAGE=ghcr.io/roamkit/roamkit-api:<tag>
-export WEB_IMAGE=ghcr.io/roamkit/roamkit-web:<tag>
+export API_IMAGE=ghcr.io/roamkit-net/roamkit-api:<tag>
+export WEB_IMAGE=ghcr.io/roamkit-net/roamkit-web:<tag>
 docker compose --profile app pull
 docker compose --profile app up -d
 ```
@@ -143,6 +152,7 @@ Deklarativni spec: **`plan.yaml`**
 
 - [ ] `roamkit-api-staging` healthy
 - [ ] `roamkit-celery-staging` Up
+- [ ] `roamkit-celery-beat-staging` Up
 - [ ] `roamkit-web-staging` healthy
 
 ---
@@ -153,6 +163,7 @@ Deklarativni spec: **`plan.yaml`**
 docker logs traefik 2>&1 | tail -30 | grep -i roamkit || true
 docker compose --profile app exec api curl -sf http://localhost:8000/health/live
 docker compose --profile app exec web curl -sf http://localhost:3000/
+curl -sf https://roamkit.net/
 curl -sf https://api.staging.roamkit.net/health/live
 curl -sf https://staging.roamkit.net/
 ```
@@ -166,8 +177,8 @@ curl -sf https://staging.roamkit.net/
 
 ```bash
 cd /opt/stacks/roamkit-net
-export API_IMAGE=ghcr.io/roamkit/roamkit-api:<tag>
-export WEB_IMAGE=ghcr.io/roamkit/roamkit-web:<tag>
+export API_IMAGE=ghcr.io/roamkit-net/roamkit-api:<tag>
+export WEB_IMAGE=ghcr.io/roamkit-net/roamkit-web:<tag>
 ./scripts/deploy-staging.sh
 ```
 
@@ -182,8 +193,8 @@ Kad `GH_TOKEN` ima **org admin** ili **Actions secrets: write**:
 
 ```bash
 # Na Dell XPS / WSL
-echo -n "65.108.196.92" | gh secret set STAGING_HOST --org roamkit
-gh secret set STAGING_SSH_KEY --org roamkit < ~/.ssh/id_ed25519
+echo -n "65.108.196.92" | gh secret set STAGING_HOST --org roamkit-net
+gh secret set STAGING_SSH_KEY --org roamkit-net < ~/.ssh/id_ed25519
 ```
 
 - [ ] `STAGING_HOST` postavljen

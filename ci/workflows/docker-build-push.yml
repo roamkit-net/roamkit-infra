@@ -19,7 +19,12 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - roamkit
+      - docker
     permissions:
       contents: read
       packages: write
@@ -37,7 +42,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/roamkit/${{ inputs.image-name }}
+          images: ghcr.io/roamkit-net/${{ inputs.image-name }}
           tags: |
             type=sha
             type=ref,event=branch
@@ -54,7 +59,7 @@ jobs:
       - name: Trivy scan
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: ghcr.io/roamkit/${{ inputs.image-name }}:${{ github.sha }}
+          image-ref: ghcr.io/roamkit-net/${{ inputs.image-name }}:${{ github.sha }}
           format: table
           exit-code: 1
           severity: CRITICAL,HIGH

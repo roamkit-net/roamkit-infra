@@ -32,6 +32,18 @@ prerequisites:
 dns:
   zone: roamkit.net
   records:
+    - name: "@"
+      fqdn: roamkit.net
+      type: A
+      value: 65.108.196.92
+      proxied: true
+      purpose: marketing landing
+    - name: www
+      fqdn: www.roamkit.net
+      type: A
+      value: 65.108.196.92
+      proxied: true
+      purpose: marketing landing (www redirect via Traefik)
     - name: staging
       fqdn: staging.roamkit.net
       type: A
@@ -45,6 +57,10 @@ dns:
       proxied: true
       purpose: api staging
   verify:
+    - command: dig +short roamkit.net A
+      note: proxied records may return Cloudflare IP, not origin
+    - command: dig +short www.roamkit.net A
+      note: proxied records may return Cloudflare IP, not origin
     - command: dig +short staging.roamkit.net A
       note: proxied records may return Cloudflare IP, not origin
     - command: dig +short api.staging.roamkit.net A
@@ -63,7 +79,7 @@ env:
   staging:
     DJANGO_SETTINGS_MODULE: config.settings.staging
     DJANGO_DEBUG: "false"
-    DJANGO_ALLOWED_HOSTS: api.staging.roamkit.net,staging.roamkit.net
+    DJANGO_ALLOWED_HOSTS: api.staging.roamkit.net,staging.roamkit.net,roamkit.net,www.roamkit.net
     NEXT_PUBLIC_API_URL: https://api.staging.roamkit.net
     NODE_ENV: production
   later:
@@ -71,12 +87,19 @@ env:
     - AIRALO_CLIENT_SECRET
     - STRIPE_SECRET_KEY
     - STRIPE_WEBHOOK_SECRET
+    - EMAIL_HOST
+    - EMAIL_PORT
+    - EMAIL_USE_TLS
+    - EMAIL_HOST_USER
+    - EMAIL_HOST_PASSWORD
+    - DEFAULT_FROM_EMAIL
+    - FRONTEND_BASE_URL
   template: .env.example
 
 images:
   registry: ghcr.io
-  api: ghcr.io/roamkit/roamkit-api
-  web: ghcr.io/roamkit/roamkit-web
+  api: ghcr.io/roamkit-net/roamkit-api
+  web: ghcr.io/roamkit-net/roamkit-web
   env_vars:
     - API_IMAGE
     - WEB_IMAGE
@@ -120,6 +143,14 @@ services:
     networks:
       - postgis
       - hetzner_net
+  celery-beat:
+    container: roamkit-celery-beat-staging
+    image: ${API_IMAGE}
+    profile: app
+    command: celery -A config beat -l info -s /tmp/celerybeat-schedule
+    networks:
+      - postgis
+      - hetzner_net
   web:
     container: roamkit-web-staging
     image: ${WEB_IMAGE}
@@ -128,7 +159,10 @@ services:
     network: proxy
     traefik:
       router: roamkit-web
-      host: staging.roamkit.net
+      hosts:
+        - roamkit.net
+        - www.roamkit.net
+        - staging.roamkit.net
       service: roamkit-web
       entrypoint: websecure
       cert_resolver: cloudflare
@@ -155,10 +189,16 @@ phases:
     requires: []
     manual: true
     expect:
+      - roamkit.net A proxied → 65.108.196.92
+      - www.roamkit.net A proxied → 65.108.196.92
       - staging.roamkit.net A proxied → 65.108.196.92
       - api.staging.roamkit.net A proxied → 65.108.196.92
       - SSL mode Full or Full (strict) — verify manually in dashboard
     verify:
+      - command: dig +short roamkit.net A
+        expect: Cloudflare proxy IPs (not origin)
+      - command: dig +short www.roamkit.net A
+        expect: Cloudflare proxy IPs (not origin)
       - command: dig +short staging.roamkit.net A
         expect: Cloudflare proxy IPs (not origin)
       - command: dig +short api.staging.roamkit.net A
@@ -207,16 +247,17 @@ phases:
       - ghcr_images
     commands:
       - cd /opt/stacks/roamkit-net
-      - export API_IMAGE=ghcr.io/roamkit/roamkit-api:<tag>
-      - export WEB_IMAGE=ghcr.io/roamkit/roamkit-web:<tag>
+      - export API_IMAGE=ghcr.io/roamkit-net/roamkit-api:<tag>
+      - export WEB_IMAGE=ghcr.io/roamkit-net/roamkit-web:<tag>
       - docker compose --profile app pull
       - docker compose --profile app up -d
     expect:
       - roamkit-api-staging healthy
       - roamkit-celery-staging Up
+      - roamkit-celery-beat-staging Up
       - roamkit-web-staging healthy
       - roamkit-api router in Traefik (Host api.staging.roamkit.net)
-      - roamkit-web router in Traefik (Host staging.roamkit.net)
+      - roamkit-web router in Traefik (Host roamkit.net, www.roamkit.net, staging.roamkit.net)
 
   - id: deploy
     description: Full deploy pipeline with migrate and smoke test
@@ -228,14 +269,14 @@ phases:
       - smoke test PASS
 
 github_secrets:
-  org: roamkit
+  org: roamkit-net
   set_from: WSL  # not from staging server
   secrets:
     - name: STAGING_HOST
       value: 65.108.196.92
-      command: echo -n "65.108.196.92" | gh secret set STAGING_HOST --org roamkit
+      command: echo -n "65.108.196.92" | gh secret set STAGING_HOST --org roamkit-net
     - name: STAGING_SSH_KEY
-      command: gh secret set STAGING_SSH_KEY --org roamkit < ~/.ssh/id_ed25519
+      command: gh secret set STAGING_SSH_KEY --org roamkit-net < ~/.ssh/id_ed25519
     - name: GHCR_TOKEN
       purpose: CI push/pull to GHCR
 
@@ -252,6 +293,8 @@ verification:
       expect: HTTP 200
     - command: curl -sf https://api.staging.roamkit.net/health/ready
       expect: HTTP 200
+    - command: curl -sf https://roamkit.net/
+      expect: HTTP 200
     - command: curl -sf https://staging.roamkit.net/
       expect: HTTP 200
   traefik:
@@ -259,7 +302,7 @@ verification:
       expect: roamkit routers registered, no cert errors
   compose:
     - command: docker compose --profile app ps
-      expect: api, celery, web Up/healthy when deployed
+      expect: api, celery, celery-beat, web Up/healthy when deployed
 
 troubleshooting:
   - problem: 502 Bad Gateway
