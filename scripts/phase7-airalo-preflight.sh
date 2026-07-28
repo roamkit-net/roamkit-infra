@@ -99,16 +99,20 @@ echo "${stg_json}" | python3 -c '
 import json,sys
 d=json.load(sys.stdin)
 assert d["airalo_sandbox"] is True, ("staging must keep sandbox=true", d)
-# Staging must not be able to hit live: disabled, empty creds, or blocked id.
-safe = (
-    (not d["airalo_enabled"])
-    or (not d["client_id_set"])
-    or d["client_id_blocked"]
+# After Roamkit-Sandbox keys: staging may call Airalo, but never Fine Star live.
+# Reject live-capable config: blocked Fine Star client_id in use.
+assert not d["client_id_blocked"], (
+    "staging AIRALO_CLIENT_ID is Fine Star live (blocked)",
+    {"cid_prefix": (d.get("client_id") or "")[:6] + "…"},
 )
-assert safe, ("staging can still make Airalo requests with live-capable config", d)
-print("staging fail-closed OK")
-' || fail "staging is not fail-closed for Airalo: ${stg_json}"
-pass "staging cannot complete an Airalo request (disabled/empty/blocked)"
+if d["airalo_enabled"]:
+    assert d["client_id_set"] and d["client_secret_set"], (
+        "staging AIRALO_ENABLED=true requires sandbox credentials",
+        d,
+    )
+print("staging sandbox-ready OK")
+' || fail "staging Airalo config not sandbox-ready (redacted)"
+pass "staging on Roamkit-Sandbox path (sandbox=true, not Fine Star)"
 
 python3 -c '
 import json,sys
