@@ -125,7 +125,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=proxy
-      - traefik.http.routers.roamkit-web-production.rule=Host(`roamkit.net`) || Host(`www.roamkit.net`)
+      - traefik.http.routers.roamkit-web-production.rule=Host(`roamkit.net`) || Host(`www.roamkit.net`) || Host(`team.roamkit.net`)
       - traefik.http.routers.roamkit-web-production.entrypoints=websecure
       - traefik.http.routers.roamkit-web-production.tls=true
       - traefik.http.routers.roamkit-web-production.tls.certresolver=cloudflare
