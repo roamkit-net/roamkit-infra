@@ -11,6 +11,10 @@
 # Cutover note: apex/www Host rules are declared here. Staging still routes
 # roamkit.net/www until cutover day (PR2) — do not flip DNS/Traefik Host on
 # staging until production smoke is green.
+#
+# Env split: `.env` is Compose interpolation only (API_IMAGE, WEB_IMAGE).
+# Compose loads it automatically. Do not pass `--env-file`; that replaces
+# `.env`. `runtime.env` is the container env_file (secrets, no image pins).
 
 services:
   api:
@@ -19,7 +23,7 @@ services:
     container_name: roamkit-api-production
     restart: unless-stopped
     env_file:
-      - .env
+      - runtime.env
     environment:
       ROAMKIT_ENVIRONMENT: production
     networks:
@@ -62,7 +66,7 @@ services:
     restart: unless-stopped
     command: celery -A config worker -l info
     env_file:
-      - .env
+      - runtime.env
     environment:
       ROAMKIT_ENVIRONMENT: production
     networks:
@@ -86,7 +90,7 @@ services:
     restart: unless-stopped
     command: celery -A config beat -l info -s /tmp/celerybeat-schedule
     env_file:
-      - .env
+      - runtime.env
     environment:
       ROAMKIT_ENVIRONMENT: production
     networks:
@@ -109,7 +113,7 @@ services:
     container_name: roamkit-web-production
     restart: unless-stopped
     env_file:
-      - .env
+      - runtime.env
     environment:
       ROAMKIT_ENVIRONMENT: production
     depends_on:
