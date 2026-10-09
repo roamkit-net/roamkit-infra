@@ -49,11 +49,19 @@ fi
 # even when the file bytes match, so that recreate must not run in the same
 # step as migrate.
 ensure_env_split() {
-  local tmp
+  local tmp api_count web_count
   if [[ ! -f "${RUNTIME_ENV}" ]]; then
     echo "ERROR: ${RUNTIME_ENV} is missing." >&2
     echo "Run the production env-split bootstrap before the first hardened deploy." >&2
     echo "This script will not create runtime.env or recreate services to do it." >&2
+    exit 1
+  fi
+  api_count="$(grep -c -E '^API_IMAGE=' "${IMAGE_ENV}" || true)"
+  web_count="$(grep -c -E '^WEB_IMAGE=' "${IMAGE_ENV}" || true)"
+  api_count="${api_count:-0}"
+  web_count="${web_count:-0}"
+  if [[ "${api_count}" -ne 1 || "${web_count}" -ne 1 ]]; then
+    echo "ERROR: ${IMAGE_ENV} must contain exactly one API_IMAGE and one WEB_IMAGE (found API=${api_count:-0} WEB=${web_count:-0})." >&2
     exit 1
   fi
   sed -i \
@@ -93,30 +101,25 @@ compose() {
 
 ensure_env_split
 
-# Prefer a registry digest. Fall back to a 40-hex SHA tag. Never :main/:develop/:latest.
+# Prefer the matching roamkit GHCR digest. Fall back to that repo's 40-hex tag.
+# Never the first unrelated RepoDigest, and never :main/:develop/:latest.
 immutable_image_ref() {
   local id="$1"
-  local ref hex picked=""
+  local repo="$2"
+  local ref hex
   while IFS= read -r ref; do
     [[ -z "${ref}" ]] && continue
-    if [[ "${ref}" == *"@sha256:"* ]]; then
+    if [[ "${ref}" == "${repo}@sha256:"* ]]; then
       hex="${ref##*@sha256:}"
       if [[ "${hex}" =~ ^[0-9a-f]{64}$ ]]; then
-        if [[ "${ref}" == ghcr.io/* ]]; then
-          printf '%s\n' "${ref}"
-          return 0
-        fi
-        picked="${ref}"
+        printf '%s\n' "${ref}"
+        return 0
       fi
     fi
   done < <(docker image inspect "${id}" --format '{{range .RepoDigests}}{{println .}}{{end}}' 2>/dev/null || true)
-  if [[ -n "${picked}" ]]; then
-    printf '%s\n' "${picked}"
-    return 0
-  fi
   while IFS= read -r ref; do
     [[ -z "${ref}" || "${ref}" == "<none>" ]] && continue
-    if [[ "${ref}" =~ :[0-9a-f]{40}$ ]]; then
+    if [[ "${ref}" == "${repo}:"* && "${ref}" =~ :[0-9a-f]{40}$ ]]; then
       printf '%s\n' "${ref}"
       return 0
     fi
@@ -127,16 +130,24 @@ immutable_image_ref() {
 assert_immutable_pin() {
   local name="$1"
   local ref="$2"
-  local hex
-  if [[ "${ref}" == *"@sha256:"* ]]; then
+  local hex repo
+  case "${name}" in
+    API_IMAGE) repo="ghcr.io/roamkit-net/roamkit-api" ;;
+    WEB_IMAGE) repo="ghcr.io/roamkit-net/roamkit-web" ;;
+    *)
+      echo "ERROR: unknown pin ${name}" >&2
+      exit 1
+      ;;
+  esac
+  if [[ "${ref}" == "${repo}@sha256:"* ]]; then
     hex="${ref##*@sha256:}"
     if [[ "${hex}" =~ ^[0-9a-f]{64}$ ]]; then
       return 0
     fi
-  elif [[ "${ref}" =~ :[0-9a-f]{40}$ ]]; then
+  elif [[ "${ref}" == "${repo}:"* && "${ref}" =~ :[0-9a-f]{40}$ ]]; then
     return 0
   fi
-  echo "ERROR: ${name} must be an immutable SHA tag or sha256 digest, got: ${ref}" >&2
+  echo "ERROR: ${name} must be an immutable ${repo} SHA tag or sha256 digest, got: ${ref}" >&2
   exit 1
 }
 
@@ -153,12 +164,12 @@ save_previous_tags() {
     echo "ERROR: cannot resolve running api/web image ids for rollback." >&2
     exit 1
   fi
-  if ! api_ref="$(immutable_image_ref "${api_id}")"; then
-    echo "ERROR: running API image has no immutable digest or 40-hex SHA tag." >&2
+  if ! api_ref="$(immutable_image_ref "${api_id}" "ghcr.io/roamkit-net/roamkit-api")"; then
+    echo "ERROR: running API image has no immutable roamkit-api digest or 40-hex SHA tag." >&2
     exit 1
   fi
-  if ! web_ref="$(immutable_image_ref "${web_id}")"; then
-    echo "ERROR: running web image has no immutable digest or 40-hex SHA tag." >&2
+  if ! web_ref="$(immutable_image_ref "${web_id}" "ghcr.io/roamkit-net/roamkit-web")"; then
+    echo "ERROR: running web image has no immutable roamkit-web digest or 40-hex SHA tag." >&2
     exit 1
   fi
   assert_immutable_pin API_IMAGE "${api_ref}"

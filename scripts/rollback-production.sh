@@ -51,16 +51,24 @@ source "${PREVIOUS_TAG_FILE}"
 assert_immutable_pin() {
   local name="$1"
   local ref="$2"
-  local hex
-  if [[ "${ref}" == *"@sha256:"* ]]; then
+  local hex repo
+  case "${name}" in
+    API_IMAGE) repo="ghcr.io/roamkit-net/roamkit-api" ;;
+    WEB_IMAGE) repo="ghcr.io/roamkit-net/roamkit-web" ;;
+    *)
+      echo "ERROR: unknown pin ${name}" >&2
+      exit 1
+      ;;
+  esac
+  if [[ "${ref}" == "${repo}@sha256:"* ]]; then
     hex="${ref##*@sha256:}"
     if [[ "${hex}" =~ ^[0-9a-f]{64}$ ]]; then
       return 0
     fi
-  elif [[ "${ref}" =~ :[0-9a-f]{40}$ ]]; then
+  elif [[ "${ref}" == "${repo}:"* && "${ref}" =~ :[0-9a-f]{40}$ ]]; then
     return 0
   fi
-  echo "ERROR: ${name} must be an immutable SHA tag or sha256 digest, got: ${ref}" >&2
+  echo "ERROR: ${name} must be an immutable ${repo} SHA tag or sha256 digest, got: ${ref}" >&2
   exit 1
 }
 
